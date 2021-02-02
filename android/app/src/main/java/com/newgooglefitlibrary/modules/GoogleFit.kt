@@ -14,12 +14,19 @@ import com.google.android.gms.fitness.request.SessionInsertRequest
 import java.util.concurrent.TimeUnit
 
 
-class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext) {
+class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), ActivityEventListener {
+
+    var permissionPromise: Promise? = null
+
+    init {
+        reactContext.addActivityEventListener(this);
+    }
 
 
     override fun getName(): String {
         return "GoogleFit"
     }
+
 
     override fun getConstants(): Map<String, Any>? {
 
@@ -37,7 +44,7 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
 
 
     private fun getGoogleAccount(): GoogleSignInAccount? {
-        return GoogleSignIn.getAccountForExtension(reactApplicationContext,getFitnessOptions())
+        return GoogleSignIn.getAccountForExtension(reactApplicationContext, getFitnessOptions())
     }
 
 
@@ -52,14 +59,14 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
     @ReactMethod
     private fun requestGoogleFitPermission(promise: Promise) {
 
+        permissionPromise = promise
+
         try {
 
             GoogleSignIn.requestPermissions(
-                    reactApplicationContext.currentActivity!!, 1,
+                    currentActivity!!, 1,
                     getGoogleAccount(),
                     getFitnessOptions())
-
-            promise.resolve("Ok");
 
         } catch (e: Exception) {
             promise.reject("Error:", e);
@@ -81,11 +88,9 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
 
 
     @ReactMethod
-    private fun insertSession(sessionName:String,id:String,activityType:String,
-                              startTimeInMin:Int,endTimeInMin:Int,
-                              calories:Float, promise: Promise ){
-
-        Log.d("TAG","start: " + startTimeInMin +  "end: " + endTimeInMin + "calories" + calories);
+    private fun insertSession(sessionName: String, id: String, activityType: String,
+                              startTimeInMin: Int, endTimeInMin: Int,
+                              calories: Float, promise: Promise){
 
             val session = Session.Builder()
                     .setName(sessionName)
@@ -132,6 +137,20 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
         private const val GYMNASTICS = "GYMNASTICS"
         private const val BOXING = "BOXING"
         private const val KICKBOXING = "KICKBOXING"
+    }
+
+    override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
+
+        if (resultCode == Activity.RESULT_OK) {
+           permissionPromise?.resolve("Result ok")
+        } else if (resultCode == Activity.RESULT_CANCELED) {
+            permissionPromise?.resolve("Canceled")
+        }
+
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        TODO("Not yet implemented")
     }
 
 }

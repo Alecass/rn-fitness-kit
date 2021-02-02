@@ -17,18 +17,4 @@ public class MainActivity extends ReactActivity {
     return "newgooglefitlibrary";
   }
 
-  @Override
-  public void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-
-    if(resultCode == Activity.RESULT_OK){
-      Log.d("TAG","OKAY");
-    } else if(resultCode == Activity.RESULT_CANCELED){
-      Log.d("TAG","CANCELED BY USER");
-    }
-
-
-  }
-
-
 }
