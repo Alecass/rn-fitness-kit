@@ -2,14 +2,14 @@ package com.bitfrit.ReactPackage
 
 import android.app.Activity
 import android.content.Intent
-import android.util.Log
 import com.facebook.react.bridge.*
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessActivities
 import com.google.android.gms.fitness.FitnessOptions
-import com.google.android.gms.fitness.data.*
+import com.google.android.gms.fitness.data.DataType
+import com.google.android.gms.fitness.data.Session
 import com.google.android.gms.fitness.request.SessionInsertRequest
 import java.util.concurrent.TimeUnit
 
@@ -17,6 +17,8 @@ import java.util.concurrent.TimeUnit
 class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), ActivityEventListener {
 
     var permissionPromise: Promise? = null
+    private val googleRequestCode = 111
+
 
     init {
         reactContext.addActivityEventListener(this);
@@ -32,12 +34,9 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
 
         val constants = HashMap<String, Any>()
 
-        constants.put(RUNNING, FitnessActivities.RUNNING)
-        constants.put(AEROBICS, FitnessActivities.AEROBICS)
-        constants.put(BIKING, FitnessActivities.BIKING)
-        constants.put(GYMNASTICS, FitnessActivities.GYMNASTICS)
-        constants.put(BOXING, FitnessActivities.BOXING)
-        constants.put(KICKBOXING, FitnessActivities.KICKBOXING)
+        constants[AEROBICS] = FitnessActivities.AEROBICS
+        constants[BOXING] = FitnessActivities.BOXING
+        constants[KICKBOXING] = FitnessActivities.KICKBOXING
 
         return constants
     }
@@ -64,7 +63,8 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
         try {
 
             GoogleSignIn.requestPermissions(
-                    currentActivity!!, 1,
+                    currentActivity!!,
+                    googleRequestCode,
                     getGoogleAccount(),
                     getFitnessOptions())
 
@@ -76,81 +76,67 @@ class GoogleFit(reactContext: ReactApplicationContext) : ReactContextBaseJavaMod
 
 
     @ReactMethod
-    private fun isGoogleFitPermissionGranted(callback: Callback) {
+    private fun isGoogleFitPermissionGranted(promise: Promise) {
+
+        try {
 
             if(GoogleSignIn.hasPermissions(getGoogleAccount(), getFitnessOptions())){
-                callback.invoke(true);
+                promise.resolve(true);
             } else{
-                callback.invoke(false);
+                promise.resolve(false);
             };
+
+        } catch (e: Exception) {
+            promise.reject("Error:", e);
+        }
 
     }
 
 
     @ReactMethod
     private fun insertSession(sessionName: String, id: String, activityType: String,
-                              startTimeInMin: Int, endTimeInMin: Int,
-                              calories: Float, promise: Promise){
+                              startTimeInMin: Double, endTimeInMin: Double, promise: Promise){
 
             val session = Session.Builder()
                     .setName(sessionName)
                     .setIdentifier(id)
                     .setActivity(activityType)
-                    .setStartTime(startTimeInMin.toLong(), TimeUnit.MINUTES)
-                    .setEndTime(endTimeInMin.toLong(), TimeUnit.MINUTES)
-                    .build()
-
-            val caloriesDataSource = DataSource.Builder()
-                    .setAppPackageName(reactApplicationContext)
-                    .setDataType(DataType.TYPE_CALORIES_EXPENDED)
-                    .setType(DataSource.TYPE_RAW)
-                    .build()
-
-           val calories = DataPoint.builder(caloriesDataSource)
-                    .setTimeInterval(startTimeInMin.toLong(), endTimeInMin.toLong(), TimeUnit.MINUTES)
-                    .setField(Field.FIELD_CALORIES, calories)
-                    .build()
-
-            val caloriesDataSet = DataSet.builder(caloriesDataSource)
-                    .add(calories)
+                    .setStartTime(startTimeInMin.toLong(), TimeUnit.MILLISECONDS)
+                    .setEndTime(endTimeInMin.toLong(), TimeUnit.MILLISECONDS)
                     .build()
 
             val insertRequest = SessionInsertRequest.Builder()
                     .setSession(session)
-                    .addDataSet(caloriesDataSet)
                     .build()
 
             Fitness.getSessionsClient(reactApplicationContext, getGoogleAccount())
                     .insertSession(insertRequest)
                     .addOnSuccessListener {
-                        promise.resolve("Successfully added new session!");
+                        promise.resolve("Successfully added a new session!");
                     }
                     .addOnFailureListener { e ->
                         promise.reject("There was a problem inserting the session: ", e)
                     }
     }
 
+
     companion object {
-        private const val RUNNING = "RUNNING"
-        private const val AEROBICS = "AEROBICS"
-        private const val BIKING = "BIKING"
-        private const val GYMNASTICS = "GYMNASTICS"
         private const val BOXING = "BOXING"
         private const val KICKBOXING = "KICKBOXING"
+        private const val AEROBICS = "AEROBICS"
     }
 
     override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
 
-        if (resultCode == Activity.RESULT_OK) {
-           permissionPromise?.resolve("Result ok")
-        } else if (resultCode == Activity.RESULT_CANCELED) {
-            permissionPromise?.resolve("Canceled")
+        if (resultCode == Activity.RESULT_OK && requestCode == googleRequestCode) {
+           permissionPromise?.resolve("ok")
+        } else if (resultCode == Activity.RESULT_CANCELED && requestCode == googleRequestCode) {
+            permissionPromise?.resolve("canceled")
         }
 
     }
 
     override fun onNewIntent(intent: Intent?) {
-        TODO("Not yet implemented")
     }
 
 }
